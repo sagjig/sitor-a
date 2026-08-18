@@ -23,6 +23,13 @@ For the uninitiated, ARQ (Automatic Repeat reQuest) essentially has the sender p
 
 If you just care about making the transmission/getting the sound of the transmission, run the program with the parameter `--no-ack`. This disables the ACK checking.
 
+## Mark and space
+By default, the program sets mark to 1670 Hz, and space to 1500 Hz (a shift of 170 Hz as per the standard). You can manually override this using the `--mark` and `--space` arguments.
+For example, to set mark/space to how they are in traditional RTTY: `--mark 2295 --space 2125`
+
+## Reverse
+Related to the above, if you are using LSB instead of USB, you can swap the mark and space using the `--reverse` argument.
+
 # Special thanks to:
 - the Crypto Museum for the _excellent_ [breakdown of SITOR A and B](https://www.cryptomuseum.com/ref/sitor/#sitor_a).
 - J. P. Martinez (G3PLX) for the [AMTOR article](https://www.arrl.org/files/file/History/History%20of%20QST%20Volume%201%20-%20Technology/QS06-81-Martinez.pdf).
