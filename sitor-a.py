@@ -1064,11 +1064,11 @@ def main():
         action="store_true",
     )
 
-    parser.add_argument(
-        "--rx",
-        action="store_true",
-        help="receive SITOR-A",
-    )
+    # parser.add_argument(
+    #     "--rx",
+    #     action="store_true",
+    #     help="receive SITOR-A",
+    # )
 
     parser.add_argument(
         "--tx",
@@ -1142,16 +1142,16 @@ def main():
         help="swap mark and space frequencies (polarity reverse)",
     )
 
-    parser.add_argument(
-        "--ptt-device",
-        metavar="DEVICE",
-        help="serial device for RTS PTT",
-    )
+    # parser.add_argument(
+    #     "--ptt-device",
+    #     metavar="DEVICE",
+    #     help="serial device for RTS PTT",
+    # )
 
-    parser.add_argument(
-        "--ptt-active-low",
-        action="store_true",
-    )
+    # parser.add_argument(
+    #     "--ptt-active-low",
+    #     action="store_true",
+    # )
 
     parser.add_argument(
         "--verbose",
