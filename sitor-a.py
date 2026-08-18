@@ -1173,30 +1173,30 @@ def main():
 
         return
 
-    if args.rx and args.tx:
-        parser.error(
-            "--rx and --tx cannot be used together."
-        )
+    # if args.rx and args.tx:
+    #     parser.error(
+    #         "--rx and --tx cannot be used together."
+    #     )
 
     if args.no_ack and not args.tx:
         parser.error(
             "--no-ack requires --tx."
         )
 
-    if not args.rx and not args.tx:
-        parser.error(
-            "Specify either --rx or --tx MESSAGE."
-        )
+    # if not args.rx and not args.tx:
+    #     parser.error(
+    #         "Specify either --rx or --tx MESSAGE."
+    #     )
 
     # ========================================================================
     # RX
     # ========================================================================
 
-    if args.rx:
-        if args.input is None:
-            parser.error(
-                "--rx requires --input."
-            )
+    # if args.rx:
+    #     if args.input is None:
+    #         parser.error(
+    #             "--rx requires --input."
+    #         )
 
         wav = None
 
