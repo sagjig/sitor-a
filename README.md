@@ -6,7 +6,8 @@ Please note that this script was written almost entirely via LLM (namely, Google
 
 ⚠️ This is a hobbyist program. Please, please, _please_, don't use this for emergency or even just routine narrow-band direct-printing (NBDP) transmissions. This script, as it exists, is in no way to be considered reliable enough to be a proper, reliable, IMO-compliant implementation of NBDP communications standards. 
 
-<img width="1416" height="600" caption="For the record, yes, I wrote the poem myself. The other program on the right is Sorcerer running via Wine." alt="Screenshot of the program, listing raw bytes, next to Sorcerer, a decoding program. The text-on screen reads 'you trusted me with your letters, your good-byes and your trevails, every birthday and christmas made bittersweet, from a chair occupied thousands of nautical miles away, i'm just a bystander now, here because they decided i still checked off their boxes (or maybe they just like me), but say the word, and for you i will make the air dance'." src="https://github.com/user-attachments/assets/49336ee2-8f8d-4708-a60f-09806e0e9ddb" />
+<img width="1416" height="600" title="For the record, yes, I wrote the poem myself. The other program on the right is Sorcerer running via Wine." alt="Screenshot of the program, listing raw bytes, next to Sorcerer, a decoding program. The text-on screen reads 'you trusted me with your letters, your good-byes and your trevails, every birthday and christmas made bittersweet, from a chair occupied thousands of nautical miles away, i'm just a bystander now, here because they decided i still checked off their boxes (or maybe they just like me), but say the word, and for you i will make the air dance'." src="https://github.com/user-attachments/assets/49336ee2-8f8d-4708-a60f-09806e0e9ddb" />
+For the record, yes, I wrote the poem myself. The other program on the right is Sorcerer running via Wine.
 
 
 # Quick start
