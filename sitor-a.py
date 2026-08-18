@@ -255,43 +255,6 @@ class WavWriter:
 
 
 # ============================================================================
-# PTT
-# ============================================================================
-
-class RTSPTT:
-    def __init__(
-        self,
-        device,
-        active_high=True,
-    ):
-        try:
-            import serial
-        except ImportError:
-            raise RuntimeError(
-                "pyserial is required for RTS PTT. "
-                "Install it with:\n"
-                "python3 -m pip install pyserial"
-            )
-
-        self.serial = serial.Serial(
-            device,
-            baudrate=9600,
-            timeout=0,
-        )
-
-        self.active_high = active_high
-
-    def on(self):
-        self.serial.rts = self.active_high
-
-    def off(self):
-        self.serial.rts = not self.active_high
-
-    def close(self):
-        self.serial.close()
-
-
-# ============================================================================
 # TRANSMITTER
 # ============================================================================
 
@@ -302,7 +265,6 @@ class SITORTransmitter:
         mark,
         space,
         amplitude,
-        ptt=None,
         reverse=False,
     ):
         self.sample_rate = sample_rate
@@ -313,7 +275,6 @@ class SITORTransmitter:
             self.mark = mark
             self.space = space
         self.amplitude = amplitude
-        self.ptt = ptt
 
         samples_per_bit = sample_rate / BAUD
 
@@ -514,18 +475,11 @@ class SITORTransmitter:
     # ------------------------------------------------------------------------
 
     def transmit_data(self, audio):
-        if self.ptt is not None:
-            self.ptt.on()
-
-        try:
-            sd.play(
-                audio,
-                self.sample_rate,
-                blocking=True,
-            )
-        finally:
-            if self.ptt is not None:
-                self.ptt.off()
+        sd.play(
+            audio,
+            self.sample_rate,
+            blocking=True,
+        )
 
     def transmit_block(self, block):
         """
@@ -533,18 +487,11 @@ class SITORTransmitter:
         """
         audio = self.make_block(block)
 
-        if self.ptt is not None:
-            self.ptt.on()
-
-        try:
-            sd.play(
-                audio,
-                self.sample_rate,
-                blocking=True,
-            )
-        finally:
-            if self.ptt is not None:
-                self.ptt.off()
+        sd.play(
+            audio,
+            self.sample_rate,
+            blocking=True,
+        )
 
     # ------------------------------------------------------------------------
     # Blind/no-ACK transmission
@@ -692,7 +639,7 @@ class SITORTransmitter:
 
 
 # ============================================================================
-# RECEIVER
+# RECEIVER (Used for ARQ ACK detection)
 # ============================================================================
 
 class SITORReceiver:
@@ -897,35 +844,6 @@ class SITORReceiver:
             self.stream.close()
             self.stream = None
 
-    def get_symbol(self, timeout):
-        deadline = (
-            time.monotonic()
-            + timeout
-        )
-
-        bits = []
-
-        while time.monotonic() < deadline:
-            new_bits = self.get_bits()
-
-            if new_bits:
-                bits.extend(new_bits)
-
-            if len(bits) >= 7:
-                symbol = bits_to_symbol(
-                    bits[:7]
-                )
-
-                if ccir_valid(symbol):
-                    return symbol
-
-                # Try to recover alignment by shifting one bit.
-                bits.pop(0)
-
-            time.sleep(0.002)
-
-        return None
-
     def wait_for_control(self, timeout):
         """
         Wait for a single 7-bit CS1/CS2/RQ symbol.
@@ -966,96 +884,13 @@ class SITORReceiver:
 
 
 # ============================================================================
-# RECEIVE DECODER
-# ============================================================================
-
-class ReceiveDecoder:
-    def __init__(
-        self,
-        receiver,
-        verbose=False,
-    ):
-        self.receiver = receiver
-        self.verbose = verbose
-
-        self.bits = []
-        self.mode = "letters"
-
-    def process(self):
-        new_bits = self.receiver.get_bits()
-
-        if new_bits:
-            self.bits.extend(
-                new_bits
-            )
-
-        while len(self.bits) >= 7:
-            symbol = bits_to_symbol(
-                self.bits[:7]
-            )
-
-            del self.bits[:7]
-
-            if not ccir_valid(symbol):
-                continue
-
-            self.process_symbol(symbol)
-
-    def process_symbol(self, symbol):
-        if symbol in {
-            ALPHA,
-            BETA,
-            RQ,
-            CS1,
-            CS2,
-            CS3,
-        }:
-            if self.verbose:
-                print(
-                    f"\n[CONTROL 0x{symbol:02X}]",
-                    file=sys.stderr,
-                )
-            return
-
-        self.mode, character = (
-            decode_symbol(
-                symbol,
-                self.mode,
-            )
-        )
-
-        if character is not None:
-            sys.stdout.write(character)
-            sys.stdout.flush()
-
-    def run(self):
-        self.receiver.start()
-
-        print(
-            "[SITOR-A RX] listening",
-            file=sys.stderr,
-        )
-
-        try:
-            while True:
-                self.process()
-                time.sleep(0.005)
-
-        except KeyboardInterrupt:
-            pass
-
-        finally:
-            self.receiver.stop()
-
-
-# ============================================================================
 # MAIN
 # ============================================================================
 
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "SITOR-A / AMTOR ARQ sound-card modem"
+            "SITOR-A / AMTOR ARQ sound-card transmitter"
         )
     )
 
@@ -1063,12 +898,6 @@ def main():
         "--list-devices",
         action="store_true",
     )
-
-    # parser.add_argument(
-    #     "--rx",
-    #     action="store_true",
-    #     help="receive SITOR-A",
-    # )
 
     parser.add_argument(
         "--tx",
@@ -1089,7 +918,7 @@ def main():
         "--input",
         type=int,
         default=None,
-        help="sound-card input device",
+        help="sound-card input device (for ARQ ACK reception)",
     )
 
     parser.add_argument(
@@ -1131,8 +960,7 @@ def main():
         "--record-wav",
         metavar="FILE.WAV",
         help=(
-            "record RX audio, or on TX save the exact "
-            "generated 450-ms-frame waveform"
+            "save the exact generated 450-ms-frame waveform"
         ),
     )
 
@@ -1141,17 +969,6 @@ def main():
         action="store_true",
         help="swap mark and space frequencies (polarity reverse)",
     )
-
-    # parser.add_argument(
-    #     "--ptt-device",
-    #     metavar="DEVICE",
-    #     help="serial device for RTS PTT",
-    # )
-
-    # parser.add_argument(
-    #     "--ptt-active-low",
-    #     action="store_true",
-    # )
 
     parser.add_argument(
         "--verbose",
@@ -1173,204 +990,146 @@ def main():
 
         return
 
-    # if args.rx and args.tx:
-    #     parser.error(
-    #         "--rx and --tx cannot be used together."
-    #     )
-
     if args.no_ack and not args.tx:
         parser.error(
             "--no-ack requires --tx."
         )
 
-    # if not args.rx and not args.tx:
-    #     parser.error(
-    #         "Specify either --rx or --tx MESSAGE."
-    #     )
-
-    # ========================================================================
-    # RX
-    # ========================================================================
-
-    # if args.rx:
-    #     if args.input is None:
-    #         parser.error(
-    #             "--rx requires --input."
-    #         )
-
-        wav = None
-
-        try:
-            if args.record_wav:
-                wav = WavWriter(
-                    args.record_wav,
-                    args.sample_rate,
-                )
-
-            receiver = SITORReceiver(
-                sample_rate=args.sample_rate,
-                mark=args.mark,
-                space=args.space,
-                wav=wav,
-                reverse=args.reverse,
-            )
-
-            ReceiveDecoder(
-                receiver,
-                verbose=args.verbose,
-            ).run()
-
-        finally:
-            if wav is not None:
-                wav.close()
-
-        return
+    if not args.tx:
+        parser.error(
+            "Specify --tx MESSAGE."
+        )
 
     # ========================================================================
     # TX
     # ========================================================================
 
-    if args.tx:
-        if args.output is None:
-            parser.error(
-                "--tx requires --output."
+    if args.output is None:
+        parser.error(
+            "--tx requires --output."
+        )
+
+    wav = None
+
+    try:
+        transmitter = SITORTransmitter(
+            sample_rate=args.sample_rate,
+            mark=args.mark,
+            space=args.space,
+            amplitude=args.amplitude,
+            reverse=args.reverse,
+        )
+
+        audio, blocks = (
+            transmitter.make_message_wav(
+                args.tx
+            )
+        )
+
+        block_count = len(blocks)
+
+        expected_samples = (
+            block_count
+            * transmitter.frame_samples
+        )
+
+        if len(audio) != expected_samples:
+            raise RuntimeError(
+                "Generated audio length mismatch: "
+                f"{len(audio)} samples generated, "
+                f"{expected_samples} expected "
+                f"for {block_count} blocks."
             )
 
-        ptt = None
-        wav = None
+        actual_seconds = (
+            len(audio)
+            / args.sample_rate
+        )
 
-        try:
-            if args.ptt_device:
-                ptt = RTSPTT(
-                    args.ptt_device,
-                    active_high=not args.ptt_active_low,
-                )
+        expected_seconds = (
+            block_count
+            * FRAME_SECONDS
+        )
 
-            transmitter = SITORTransmitter(
-                sample_rate=args.sample_rate,
-                mark=args.mark,
-                space=args.space,
-                amplitude=args.amplitude,
-                ptt=ptt,
-                reverse=args.reverse,
+        if abs(
+            actual_seconds
+            - expected_seconds
+        ) > (
+            1.0 / args.sample_rate
+        ):
+            raise RuntimeError(
+                "Generated audio duration mismatch: "
+                f"{actual_seconds:.6f}s generated, "
+                f"{expected_seconds:.6f}s expected."
             )
 
-            audio, blocks = (
-                transmitter.make_message_wav(
-                    args.tx
-                )
+        if args.verbose:
+            print(
+                f"[TX] {block_count} blocks",
+                file=sys.stderr,
             )
 
-            block_count = len(blocks)
-
-            expected_samples = (
-                block_count
-                * transmitter.frame_samples
+            print(
+                f"[TX] {actual_seconds:.3f} seconds",
+                file=sys.stderr,
             )
 
-            if len(audio) != expected_samples:
-                raise RuntimeError(
-                    "Generated audio length mismatch: "
-                    f"{len(audio)} samples generated, "
-                    f"{expected_samples} expected "
-                    f"for {block_count} blocks."
-                )
-
-            actual_seconds = (
-                len(audio)
-                / args.sample_rate
+        if args.record_wav:
+            wav = WavWriter(
+                args.record_wav,
+                args.sample_rate,
             )
 
-            expected_seconds = (
-                block_count
-                * FRAME_SECONDS
-            )
+            wav.write(audio)
+            wav.close()
+            wav = None
 
-            if abs(
-                actual_seconds
-                - expected_seconds
-            ) > (
-                1.0 / args.sample_rate
-            ):
-                raise RuntimeError(
-                    "Generated audio duration mismatch: "
-                    f"{actual_seconds:.6f}s generated, "
-                    f"{expected_seconds:.6f}s expected."
-                )
-
+        if args.no_ack:
             if args.verbose:
                 print(
-                    f"[TX] {block_count} blocks",
+                    "[TX] blind mode: "
+                    "ACK/RQ disabled",
                     file=sys.stderr,
                 )
 
-                print(
-                    f"[TX] {actual_seconds:.3f} seconds",
-                    file=sys.stderr,
-                )
-
-            if args.record_wav:
-                wav = WavWriter(
-                    args.record_wav,
-                    args.sample_rate,
-                )
-
-                wav.write(audio)
-                wav.close()
-                wav = None
-
-            if args.no_ack:
-                if args.verbose:
-                    print(
-                        "[TX] blind mode: "
-                        "ACK/RQ disabled",
-                        file=sys.stderr,
-                    )
-
-                transmitter.transmit_no_ack(
-                    blocks,
-                    verbose=args.verbose,
-                )
-
-                return
-
-            if args.input is None:
-                parser.error(
-                    "Normal --tx requires --input for "
-                    "ACK reception. Use --no-ack if "
-                    "no receive device is available."
-                )
-
-            receiver = SITORReceiver(
-                sample_rate=args.sample_rate,
-                mark=args.mark,
-                space=args.space,
-                reverse=args.reverse,
-            )
-
-            if args.verbose:
-                print(
-                    "[TX] ARQ mode: waiting for CS1/CS2",
-                    file=sys.stderr,
-                )
-
-            transmitter.transmit_arq(
+            transmitter.transmit_no_ack(
                 blocks,
-                receiver,
                 verbose=args.verbose,
             )
 
-        finally:
-            if wav is not None:
-                wav.close()
+            return
 
-            if ptt is not None:
-                try:
-                    ptt.off()
-                finally:
-                    ptt.close()
+        if args.input is None:
+            parser.error(
+                "Normal --tx requires --input for "
+                "ACK reception. Use --no-ack if "
+                "no receive device is available."
+            )
 
-        return
+        receiver = SITORReceiver(
+            sample_rate=args.sample_rate,
+            mark=args.mark,
+            space=args.space,
+            reverse=args.reverse,
+        )
+
+        if args.verbose:
+            print(
+                "[TX] ARQ mode: waiting for CS1/CS2",
+                file=sys.stderr,
+            )
+
+        transmitter.transmit_arq(
+            blocks,
+            receiver,
+            verbose=args.verbose,
+        )
+
+    finally:
+        if wav is not None:
+            wav.close()
+
+    return
 
 
 if __name__ == "__main__":
