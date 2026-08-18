@@ -30,3 +30,8 @@ If you just care about making the transmission/getting the sound of the transmis
 - [CLOVER-400](https://web.tapr.org/meetings/DCC_1996/DCC1996-WorldwideHFdataNetwork-WA8DRZ.pdf), a forward-compatible(?) data mode for HF maritime comms. 
 - Alton J. Daley's [paper on HF radiotelex](https://ieeexplore.ieee.org/document/1622380/).
 - Steve Watt (KD6GGD)'s [textfile](https://github.com/jbarke/textfiles.com/blob/12a04de3091d8d3fa1e5c98b96a2ab93e7b30006/textfiles.com/internet/FAQ/faqad1.txt#L297) on amateur packet radio.
+
+# Recommended decoding software
+The programs listed below are originally written for Windows, but I have tested these personally under Fedora Linux, using Wine.
+- Sorcerer, by Avonlea Services, [hosted for download here by Dave M0TAZ](https://m0taz.co.uk/2016/03/sorcerer-decoding/). This program is older, but its SITOR decoding is superb. I have encountered very little errors and it seems to correctly acknowledge start and end of message segments.
+- [TrueTTY by DXSoft](https://www.dxsoft.com/en/products/truetty/). The SITOR-ARQ decoding on this can be a little frazzled, but it works for the most part.
